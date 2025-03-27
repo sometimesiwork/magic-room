@@ -1,0 +1,12 @@
+{
+  "name": "magic-room",
+  "version": "1.0.0",
+  "description": "3D магическая комната для проведения ритуалов",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "three": "^0.132.2"
+  }
+} 

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Магическая Комната</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; 
+            background: #000;
+            overflow: hidden;
+            font-family: 'Cinzel', Arial, sans-serif;
+        }
+        canvas { 
+            display: block; 
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: 'Cinzel', Arial, sans-serif;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            transition: opacity 0.3s ease;
+        }
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-family: 'Cinzel', Arial, sans-serif;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1100;
+        }
+        #ritual-selection {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            color: white;
+            font-family: 'Cinzel', Arial, sans-serif;
+            z-index: 120;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .ritual-button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.3s;
+            font-family: 'Cinzel', Arial, sans-serif;
+        }
+        .ritual-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .ritual-description {
+            font-size: 12px;
+            margin-top: 2px;
+            opacity: 0.8;
+        }
+        #interaction-text {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Cinzel', Arial, sans-serif;
+            z-index: 130;
+            max-width: 300px;
+            text-align: center;
+            display: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 150;
+        }
+        #crosshair.active {
+            /* Удаляем фиксированный цвет, чтобы не конфликтовал с JavaScript */
+            /* Стили будут добавляться динамически */
+        }
+        /* Медиа-запросы для адаптивности */
+        @media (max-height: 600px) {
+            #ritual-selection {
+                max-height: 60vh;
+            }
+        }
+        @media (max-width: 768px) {
+            #info, #ritual-selection {
+                font-size: 14px;
+                padding: 8px;
+            }
+            .ritual-description {
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        Кликните для активации управления<br>
+        WASD для перемещения<br>
+        Мышь для осмотра
+    </div>
+    <div id="error"></div>
+    <div id="ritual-selection">
+        <h3 style="margin-top: 0;">Выберите ритуал:</h3>
+        <div class="ritual-buttons">
+            <button class="ritual-button" data-ritual="protection">Защитный круг</button>
+            <button class="ritual-button" data-ritual="cleansing">Очищение пространства</button>
+            <button class="ritual-button" data-ritual="summoning">Призыв духов</button>
+            <button class="ritual-button" data-ritual="healing">Целительство</button>
+            <button class="ritual-button" data-ritual="divination">Прорицание</button>
+            <button class="ritual-button" data-ritual="regardie">Полный ритуал Регарди</button>
+        </div>
+    </div>
+    <div id="interaction-text"></div>
+    <div id="crosshair"></div>
+    <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.132.2/examples/js/controls/PointerLockControls.js"></script>
+    <script src="main.js"></script>
+</body>
+</html> 
