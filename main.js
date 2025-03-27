@@ -1485,8 +1485,14 @@ const ritualSystem = {
     },
     
     nextStep() {
-        // Если ритуал не активен, не выполняем шаги
-        if (!this.isActive) {
+        // Если ритуал не активен или в процессе завершения, не выполняем шаги
+        if (!this.isActive || this.rituaCompleting) {
+            return;
+        }
+        
+        // Проверяем, не отображается ли уже сообщение о завершении ритуала
+        const completeMessage = document.querySelector('[style*="color: #ffd700"]');
+        if (completeMessage && completeMessage.innerHTML.includes('Ритуал успешно завершен')) {
             return;
         }
         
@@ -1513,8 +1519,18 @@ const ritualSystem = {
                 this.showNextStep();
             }
         } else {
-            // Если все шаги выполнены
-            this.completeRitual();
+            // Если все шаги выполнены и нет активного сообщения о завершении
+            // Проверяем еще раз, не установлен ли флаг завершения
+            if (!this.rituaCompleting) {
+                // И нет активного сообщения
+                const completeMessage = document.querySelector('[style*="color: #ffd700"]');
+                if (!completeMessage || !completeMessage.innerHTML.includes('Ритуал успешно завершен')) {
+                    // Устанавливаем флаг завершения ритуала, чтобы избежать повторного отображения
+                    this.rituaCompleting = true;
+                    // И только тогда вызываем completeRitual
+                    this.completeRitual();
+                }
+            }
         }
     },
     
@@ -2090,7 +2106,46 @@ const ritualSystem = {
                         completeMessage.remove();
                     }
                     
-                    ritualSystem.completeRitual();
+                    // Вместо вызова completeRitual показываем сообщение сами
+                    // Сбрасываем состояние ритуала
+                    ritualSystem.isActive = false;
+                    ritualSystem.currentRitual = null;
+                    ritualSystem.currentStep = 0;
+                    ritualSystem.steps = [];
+                    
+                    // Удаляем панель ритуала
+                    const ritualPanel = document.querySelector('.ritual-panel');
+                    if (ritualPanel) {
+                        ritualPanel.remove();
+                    }
+                    
+                    // Создаем и отображаем сообщение о завершении ритуала
+                    const completeDiv = document.createElement('div');
+                    completeDiv.style.position = 'absolute';
+                    completeDiv.style.top = '50%';
+                    completeDiv.style.left = '50%';
+                    completeDiv.style.transform = 'translate(-50%, -50%)';
+                    completeDiv.style.background = 'rgba(0, 0, 0, 0.8)';
+                    completeDiv.style.color = '#ffd700';
+                    completeDiv.style.padding = '20px';
+                    completeDiv.style.borderRadius = '10px';
+                    completeDiv.style.fontFamily = "'Cinzel', Arial, sans-serif";
+                    completeDiv.style.zIndex = '1050';
+                    completeDiv.style.textAlign = 'center';
+                    completeDiv.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.3)';
+                    completeDiv.style.border = '1px solid #ffd700';
+                    completeDiv.innerHTML = '<h2>Ритуал успешно завершен!</h2><p>Магия наполняет комнату энергией...</p>';
+                    document.body.appendChild(completeDiv);
+                    
+                    // Показываем панель выбора ритуала
+                    setTimeout(() => {
+                        const ritualSelection = document.getElementById('ritual-selection');
+                        if (ritualSelection) {
+                            ritualSelection.style.display = 'block';
+                        }
+                        completeDiv.remove();
+                        ritualSystem.rituaCompleting = false; // Сбрасываем флаг
+                    }, 3000);
                 }
             }
             
@@ -2099,6 +2154,27 @@ const ritualSystem = {
     },
     
     completeRitual() {
+        // Проверяем, не отображается ли уже сообщение о завершении ритуала
+        const completeMessage = document.querySelector('[style*="color: #ffd700"]');
+        if (completeMessage && completeMessage.innerHTML.includes('Ритуал успешно завершен')) {
+            console.log("Сообщение о завершении ритуала уже отображается");
+            
+            // Просто обновляем состояние ритуала без отображения нового сообщения
+            this.isActive = false;
+            this.currentRitual = null;
+            this.currentStep = 0;
+            this.steps = [];
+            this.rituaCompleting = false;
+            
+            return;
+        }
+        
+        // Если ритуал уже в процессе завершения, не делаем ничего
+        if (this.rituaCompleting) {
+            console.log("Ритуал уже в процессе завершения");
+            return;
+        }
+        
         this.isActive = false;
         this.currentRitual = null;
         this.currentStep = 0;
