@@ -114,9 +114,25 @@ const incenseMaterial = new THREE.MeshStandardMaterial({
 const incense = new THREE.Mesh(incenseGeometry, incenseMaterial.clone());
 incense.castShadow = true;
 incense.receiveShadow = true;
+incense.position.set(0.5, 0.83, -4);
+
+// Создаем кончик благовония
+const tipGeometry = new THREE.CylinderGeometry(0.02, 0.01, 0.1, 8);
+const tipMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xA52A2A,
+    roughness: 0.9,
+    metalness: 0.1,
+    emissive: 0x000000,
+    emissiveIntensity: 0
+});
+const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+tip.position.set(0, 0.25, 0); // Позиционируем кончик над благовонием
+incense.add(tip); // Добавляем кончик как дочерний объект
+
 incense.userData = {
     type: 'incense',
-    isLit: false
+    isLit: false,
+    tip: tip // Сохраняем ссылку на кончик в userData
 };
 ritualItems.incense = incense;
 scene.add(incense);
@@ -1544,6 +1560,22 @@ const ritualSystem = {
             case 'incense':
                 audioSystem.play('ritual');
                 break;
+
+            case 'incense':
+                if (!item.userData.isLit) {
+                    item.userData.isLit = true;
+                    
+                    // Добавляем проверку наличия tip перед обращением к его material
+                    if (item.userData.tip && item.userData.tip.material) {
+                        item.userData.tip.material.emissive.set(0xff3300);
+                        item.userData.tip.material.emissiveIntensity = 0.5;
+                    }
+                    
+                    // Создаем эффект дыма
+                    createSmokeParticles(item.position.x, item.position.y + 0.5, item.position.z);
+                    audioSystem.play('ritual');
+                }
+                break;
         }
 
         this.showInstruction('Предмет активирован');
@@ -2393,20 +2425,28 @@ window.addEventListener('click', (event) => {
                     if (requiresDeactivation || item.userData.isLit) {
                         // Тушим благовоние
                         item.userData.isLit = false;
-                        item.userData.tip.material.emissive.set(0x000000);
-                        item.userData.tip.material.emissiveIntensity = 0;
+                        
+                        // Меняем цвет кончика благовония
+                        if (item && item.userData && item.userData.tip && item.userData.tip.material) {
+                            item.userData.tip.material.emissive.set(0x000000);
+                            item.userData.tip.material.emissiveIntensity = 0;
+                        }
 
                         if (item.userData.smoke) {
                             scene.remove(item.userData.smoke);
                             item.userData.smoke = null;
                         }
-                        audioSystem.play('incense');
+                        audioSystem.play('ritual');
                     } else {
                         // Зажигаем благовоние
                         item.userData.isLit = true;
-                        item.userData.tip.material.emissive.set(0xff3300);
-                        item.userData.tip.material.emissiveIntensity = 0.5;
-                        audioSystem.play('incense');
+                        
+                        // Меняем цвет кончика благовония
+                        if (item && item.userData && item.userData.tip && item.userData.tip.material) {
+                            item.userData.tip.material.emissive.set(0xff3300);
+                            item.userData.tip.material.emissiveIntensity = 0.5;
+                        }
+                        audioSystem.play('ritual');
 
                         if (!item.userData.smoke) {
                             createSmokeParticles(item.position.x, item.position.y + 0.5, item.position.z);
@@ -2500,10 +2540,10 @@ function highlightInteractiveObject(object, isHighlighted) {
         object.material.emissiveIntensity = 0.3;
         
         // Показываем подпись, если объект имеет тип
-        if (object.userData && object.userData.type) {
+        if (object && object.userData && object.userData.type) {
             showItemTitle(object);
         }
-    } else if (object.userData.originalEmissive) {
+    } else if (object.userData && object.userData.originalEmissive) {
         // Возвращаем оригинальное состояние
         object.material.emissive = object.userData.originalEmissive;
         object.material.emissiveIntensity = object.userData.originalEmissiveIntensity;
@@ -3155,3 +3195,74 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 animate(); 
+
+// Добавляем функцию создания эффекта дыма от благовоний
+function createSmokeParticles(x, y, z) {
+    const smokeGeometry = new THREE.BufferGeometry();
+    const particleCount = 50;
+    
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    
+    // Задаем начальные позиции частиц
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = x + (Math.random() - 0.5) * 0.1;
+        positions[i * 3 + 1] = y + Math.random() * 0.1;
+        positions[i * 3 + 2] = z + (Math.random() - 0.5) * 0.1;
+        
+        // Серый цвет дыма
+        colors[i * 3] = 0.5 + Math.random() * 0.2;
+        colors[i * 3 + 1] = 0.5 + Math.random() * 0.2;
+        colors[i * 3 + 2] = 0.5 + Math.random() * 0.2;
+    }
+    
+    smokeGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    smokeGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    const smokeMaterial = new THREE.PointsMaterial({
+        size: 0.05,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7
+    });
+    
+    const smoke = new THREE.Points(smokeGeometry, smokeMaterial);
+    scene.add(smoke);
+    
+    // Привязываем дым к благовониям
+    const incense = ritualItems.incense;
+    if (incense && incense.userData) {
+        incense.userData.smoke = smoke;
+        
+        // Анимация дыма
+        const smokeInterval = setInterval(() => {
+            if (!incense || !incense.userData || !incense.userData.isLit || !incense.userData.smoke) {
+                clearInterval(smokeInterval);
+                return;
+            }
+            
+            const positions = smoke.geometry.attributes.position.array;
+            
+            // Обновляем позиции частиц
+            for (let i = 0; i < particleCount; i++) {
+                // Поднимаем частицы вверх
+                positions[i * 3 + 1] += 0.01 + Math.random() * 0.01;
+                
+                // Слегка смещаем в стороны
+                positions[i * 3] += (Math.random() - 0.5) * 0.005;
+                positions[i * 3 + 2] += (Math.random() - 0.5) * 0.005;
+                
+                // Если частица поднялась слишком высоко, возвращаем к начальной позиции
+                if (positions[i * 3 + 1] > y + 1) {
+                    positions[i * 3] = x + (Math.random() - 0.5) * 0.1;
+                    positions[i * 3 + 1] = y;
+                    positions[i * 3 + 2] = z + (Math.random() - 0.5) * 0.1;
+                }
+            }
+            
+            smoke.geometry.attributes.position.needsUpdate = true;
+        }, 50);
+    }
+    
+    return smoke;
+}
