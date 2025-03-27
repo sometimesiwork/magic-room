@@ -1188,18 +1188,14 @@ function createParticles(color, count, effect) {
 
 // Создаем систему проведения ритуала
 const ritualSystem = {
+    isActive: false,
     currentRitual: null,
     currentStep: 0,
     steps: [],
-    isActive: false,
-    particleSystems: [],
-    circleProgress: 0,
-    lastPosition: null,
-    circleCenter: new THREE.Vector3(0, 0, 0),
-    circleRadius: 1.5,
-    usedItems: [], // Отслеживание предметов, использованных В ТЕКУЩЕМ шаге (очищается в showNextStep)
-    activatedItemsStep: {}, // Отслеживание шага активации для каждого предмета { itemUUID: stepIndex }
-
+    usedItems: [],
+    rituaCompleting: false, // Флаг для отслеживания стадии завершения ритуала
+    activatedItemsStep: {}, // Отслеживание шага, на котором был активирован предмет
+    
     initRitual(ritualType) {
         if (!rituals[ritualType]) {
             console.error('Ритуал не найден:', ritualType);
@@ -1213,6 +1209,56 @@ const ritualSystem = {
         this.steps = this.currentRitual.steps;
         this.activatedItemsStep = {}; // Сбрасываем отслеживание активации при начале нового ритуала
 
+        // Устанавливаем флаги для корректной обработки шагов с предметами
+        this.steps.forEach(step => {
+            // Проанализируем текст шага
+            const stepText = step.text ? step.text.toLowerCase() : '';
+            
+            // Определяем шаги, требующие взаимодействия с предметами
+            const itemKeywords = [
+                'наведите', 'зажгите', 'зарядите', 'наполните', 'положите', 'используйте',
+                'свеч', 'кристал', 'атам', 'чаш', 'жезл', 'благовони', 'трав', 'алтар', 
+                'пентакл', 'pentacle', 'athame', 'wand', 'chalice', 'candle', 'herb', 'crystal'
+            ];
+            
+            // Проверяем, содержит ли текст шага любое из ключевых слов, связанных с предметами
+            const needsItem = itemKeywords.some(keyword => stepText.includes(keyword));
+            
+            // Устанавливаем флаг requiresItem для шагов, требующих взаимодействия с предметами
+            if (needsItem) {
+                step.requiresItem = true;
+            } else {
+                step.requiresItem = false;
+            }
+            
+            // Определяем шаги, требующие передвижения
+            const movementKeywords = ['обойдите', 'пройдите', 'встаньте', 'подойдите', 'двигайтесь'];
+            
+            // Проверяем, содержит ли текст шага любое из ключевых слов, связанных с движением
+            const needsMovement = movementKeywords.some(keyword => stepText.includes(keyword));
+            
+            // Устанавливаем флаг requiresRaycast для шагов, требующих передвижения
+            if (needsMovement) {
+                step.requiresRaycast = true;
+            } else {
+                step.requiresRaycast = false;
+            }
+            
+            // Кроме анализа текста, проверяем action
+            if (step.action && step.action.toString().includes('checkItem')) {
+                step.requiresItem = true;
+            }
+            
+            // Для шагов, которые содержат ссылку на checkDistance, checkCandles или checkCircleProgress
+            if (step.action && (
+                step.action.toString().includes('checkDistance') || 
+                step.action.toString().includes('checkCandles') ||
+                step.action.toString().includes('checkCircleProgress')
+            )) {
+                step.requiresRaycast = true;
+            }
+        });
+
         this.createRitualUI();
         this.showNextStep();
         audioSystem.play(this.currentRitual.sound);
@@ -1223,6 +1269,7 @@ const ritualSystem = {
         this.currentRitual = null;
         this.currentStep = 0;
         this.steps = [];
+        this.rituaCompleting = false; // Сбрасываем флаг при отмене ритуала
         
         // Удаляем панель ритуала
         const ritualPanel = document.querySelector('.ritual-panel');
@@ -1326,9 +1373,26 @@ const ritualSystem = {
 
         if (this.currentStep < this.steps.length) {
             const step = this.steps[this.currentStep];
+            
+            // Явно указываем флаги для текущего шага на основе его содержимого
+            if (step.action && step.action.toString().includes('checkItem')) {
+                step.requiresItem = true;
+                console.log(`Шаг ${this.currentStep} требует взаимодействия с предметом`);
+            }
+            
+            if (step.action && (
+                step.action.toString().includes('checkDistance') || 
+                step.action.toString().includes('checkCandles') ||
+                step.action.toString().includes('checkCircleProgress')
+            )) {
+                step.requiresRaycast = true;
+                console.log(`Шаг ${this.currentStep} требует проверки позиции/движения`);
+            }
 
             // Показываем основную инструкцию
             this.showInstruction(step.text);
+            
+            console.log(`Отображение шага ${this.currentStep}:`, step);
             
             // Обновляем подсветку текущего шага в панели
             const stepElements = document.querySelectorAll('.ritual-step');
@@ -1366,18 +1430,66 @@ const ritualSystem = {
     },
     
     showInstruction(text) {
+        // Удаляем предыдущую инструкцию, если есть
+        const existingInstruction = document.querySelector('.interaction-hint');
+        if (existingInstruction) {
+            existingInstruction.remove();
+        }
+
+        // Проверяем, не отображается ли уже сообщение о завершении ритуала
+        const completeMessage = document.querySelector('[style*="color: #ffd700"]');
+        if (completeMessage && completeMessage.innerHTML.includes('Ритуал успешно завершен')) {
+            // Если отображается сообщение о завершении ритуала, не показываем инструкцию
+            return;
+        }
+
         const instructionDiv = document.createElement('div');
         instructionDiv.className = 'interaction-hint magic-ui';
-        instructionDiv.innerHTML = `
-            <div>${text}</div>
-            <div style="margin-top: 10px; font-size: 0.9em; color: #b0b0b0;">
-                Нажмите ЛКМ для проверки
-            </div>
-        `;
+        
+        // Проверяем, связан ли текст с завершением ритуала или это обычная инструкция
+        if (text === 'Ритуал успешно завершен!' || text.includes('завершен') || text.includes('Завершен') || this.rituaCompleting) {
+            // Для завершающих сообщений не показываем подсказку о ЛКМ
+            instructionDiv.innerHTML = `<div>${text}</div>`;
+        } else {
+            // Проверка на то, является ли инструкция подсказкой о нажатии ЛКМ для проверки
+            // или инструкцией для взаимодействия с предметами
+            const isInteractionInstruction = text.includes('Наведите на') || 
+                                             text.includes('Встаньте в') || 
+                                             text.includes('Обойдите') ||
+                                             text.includes('Двигайтесь') ||
+                                             text.includes('Подойдите');
+            
+            if (this.currentStep >= this.steps.length || !this.isActive) {
+                // Если ритуал завершен или неактивен, не показываем подсказку о ЛКМ
+                instructionDiv.innerHTML = `<div>${text}</div>`;
+            } else if (isInteractionInstruction) {
+                // Если это инструкция для взаимодействия, показываем подсказку о ЛКМ
+                instructionDiv.innerHTML = `
+                    <div>${text}</div>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #b0b0b0;">
+                        Нажмите ЛКМ для проверки
+                    </div>
+                `;
+            } else {
+                // Для остальных инструкций - тоже показываем подсказку
+                instructionDiv.innerHTML = `
+                    <div>${text}</div>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #b0b0b0;">
+                        Нажмите ЛКМ для проверки
+                    </div>
+                `;
+            }
+        }
+        
         document.body.appendChild(instructionDiv);
     },
     
     nextStep() {
+        // Если ритуал не активен, не выполняем шаги
+        if (!this.isActive) {
+            return;
+        }
+        
         if (this.currentStep < this.steps.length) {
             const step = this.steps[this.currentStep];
             
@@ -1388,12 +1500,14 @@ const ritualSystem = {
                 
                 // Обновляем отображение шагов в панели
                 const stepsContainer = document.querySelector('.ritual-steps');
-                stepsContainer.innerHTML = this.steps.map((step, index) => `
-                    <div class="ritual-step ${index === this.currentStep ? 'active-step' : ''} ${index < this.currentStep ? 'completed' : ''}">
-                        <div class="step-number">Шаг ${index + 1} из ${this.steps.length}</div>
-                        <div class="step-text">${step.text}</div>
-                    </div>
-                `).join('');
+                if (stepsContainer) {
+                    stepsContainer.innerHTML = this.steps.map((step, index) => `
+                        <div class="ritual-step ${index === this.currentStep ? 'active-step' : ''} ${index < this.currentStep ? 'completed' : ''}">
+                            <div class="step-number">Шаг ${index + 1} из ${this.steps.length}</div>
+                            <div class="step-text">${step.text}</div>
+                        </div>
+                    `).join('');
+                }
                 
                 // Показываем следующий шаг
                 this.showNextStep();
@@ -1432,22 +1546,35 @@ const ritualSystem = {
     },
     
     checkItem(itemType) {
+        console.log(`Проверка предмета: ${itemType}, шаг: ${this.currentStep}`);
+        
         let item;
         
         // Специальная обработка для алтаря
         if (itemType === 'altar') {
             item = ritualItems.altar;
+        } else if (itemType === 'candle') {
+            // Если ищем свечи, берем первую незажженную
+            item = ritualItems.candles.find(c => !c.userData.isLit);
         } else {
             item = ritualItems[itemType];
         }
         
         if (!item) {
+            console.log(`Предмет ${itemType} не найден`);
             this.showInstruction(`Предмет ${itemType} не найден`);
             return false;
         }
 
+        console.log(`Найден предмет: ${itemType}, userData:`, item.userData);
+
+        // Проверяем, требуется ли деактивация предмета для текущего шага
+        const currentStep = this.steps[this.currentStep];
+        const requiresDeactivation = currentStep && currentStep.requiresDeactivation;
+
         // Проверяем, не был ли предмет уже использован в текущем шаге
         if (this.usedItems.includes(item.uuid)) {
+            console.log(`Предмет ${itemType} уже использован в текущем шаге`);
             this.showInstruction('Этот предмет уже использован в текущем шаге');
             return false;
         }
@@ -1460,9 +1587,11 @@ const ritualSystem = {
                 item.userData.isActivated = false;
                 if (item.children) {
                     item.children.forEach(child => {
-                        child.material.emissiveIntensity = 0;
+                        if (child.material) {
+                            child.material.emissiveIntensity = 0;
+                        }
                     });
-                } else {
+                } else if (item.material) {
                     item.material.emissiveIntensity = 0;
                 }
                 this.showInstruction('Предмет деактивирован');
@@ -1474,9 +1603,11 @@ const ritualSystem = {
         item.userData.isActivated = true;
         if (item.children) {
             item.children.forEach(child => {
-                child.material.emissiveIntensity = 0.5;
+                if (child.material) {
+                    child.material.emissiveIntensity = 0.5;
+                }
             });
-        } else {
+        } else if (item.material) {
             item.material.emissiveIntensity = 0.5;
         }
         this.usedItems.push(item.uuid);
@@ -1495,7 +1626,7 @@ const ritualSystem = {
             case 'crystal':
                 if (!item.userData.isCharged) {
                     item.userData.isCharged = true;
-                    ritualSystem.chargeItem(item);
+                    this.chargeItem(item);
                     audioSystem.play('crystal');
                 }
                 break;
@@ -1504,7 +1635,9 @@ const ritualSystem = {
                 if (requiresDeactivation || item.userData.isBurning) {
                     // Тушим травы
                     item.userData.isBurning = false;
-                    item.material.emissiveIntensity = 0;
+                    if (item.material) {
+                        item.material.emissiveIntensity = 0;
+                    }
                     if (item.userData.smoke) {
                         scene.remove(item.userData.smoke);
                         item.userData.smoke = null;
@@ -1513,7 +1646,7 @@ const ritualSystem = {
                 } else {
                     // Зажигаем травы
                     item.userData.isBurning = true;
-                    ritualSystem.burnHerb(item);
+                    this.burnHerb(item);
                 }
                 break;
 
@@ -1529,7 +1662,7 @@ const ritualSystem = {
                 } else {
                     // Наполняем чашу
                     item.userData.isFilled = true;
-                    ritualSystem.fillChalice(item);
+                    this.fillChalice(item);
                 }
                 break;
 
@@ -1558,10 +1691,6 @@ const ritualSystem = {
                 break;
 
             case 'incense':
-                audioSystem.play('ritual');
-                break;
-
-            case 'incense':
                 if (!item.userData.isLit) {
                     item.userData.isLit = true;
                     
@@ -1578,6 +1707,7 @@ const ritualSystem = {
                 break;
         }
 
+        console.log(`Предмет ${itemType} активирован успешно`);
         this.showInstruction('Предмет активирован');
         return true;
     },
@@ -1861,6 +1991,9 @@ const ritualSystem = {
     },
     
     performRitual(ritual) {
+        // Убираем преждевременную установку флага
+        // this.rituaCompleting = true; - это было неправильно
+        
         createParticles(ritual.color, ritual.particles, ritual.effect);
         
         // Добавляем свечение к магическому кругу
@@ -1874,6 +2007,12 @@ const ritualSystem = {
             effect: ritual.effect,
             intensity: 0
         };
+        
+        // Удаляем все предыдущие инструкции
+        const existingInstruction = document.querySelector('.interaction-hint');
+        if (existingInstruction) {
+            existingInstruction.remove();
+        }
         
         // Добавляем эффект в анимацию
         const originalAnimate = animate;
@@ -1935,6 +2074,22 @@ const ritualSystem = {
                     pulseEffect.active = false;
                     magicCircle.material.emissiveIntensity = 1.0;
                     animate = originalAnimate;
+                    
+                    // Устанавливаем флаг завершения ритуала здесь - в нужном месте
+                    ritualSystem.rituaCompleting = true;
+                    
+                    // Удаляем все оставшиеся инструкции перед завершением ритуала
+                    const allInstructions = document.querySelectorAll('.interaction-hint');
+                    allInstructions.forEach(instruction => {
+                        instruction.remove();
+                    });
+                    
+                    // Проверяем, нет ли текущего сообщения о завершении
+                    const completeMessage = document.querySelector('[style*="color: #ffd700"]');
+                    if (completeMessage && completeMessage.innerHTML.includes('Ритуал успешно завершен')) {
+                        completeMessage.remove();
+                    }
+                    
                     ritualSystem.completeRitual();
                 }
             }
@@ -1948,6 +2103,13 @@ const ritualSystem = {
         this.currentRitual = null;
         this.currentStep = 0;
         this.steps = [];
+        this.rituaCompleting = false; // Сбрасываем флаг после завершения ритуала
+        
+        // Удаляем предыдущую инструкцию, если есть
+        const existingInstruction = document.querySelector('.interaction-hint');
+        if (existingInstruction) {
+            existingInstruction.remove();
+        }
         
         // Удаляем панель ритуала
         const ritualPanel = document.querySelector('.ritual-panel');
@@ -2270,6 +2432,17 @@ window.addEventListener('click', (event) => {
         return;
     }
     
+    // Проверяем, не отображается ли сообщение о завершении ритуала
+    const completeMessage = document.querySelector('[style*="color: #ffd700"]');
+    if (completeMessage && completeMessage.innerHTML.includes('Ритуал успешно завершен')) {
+        return; // Если отображается сообщение о завершении ритуала, не обрабатываем клик
+    }
+    
+    // Проверяем, не в стадии ли завершения ритуал
+    if (ritualSystem.rituaCompleting) {
+        return; // Если ритуал в стадии завершения, не реагируем на клики
+    }
+    
     // Используем луч из центра экрана
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     
@@ -2288,6 +2461,29 @@ window.addEventListener('click', (event) => {
     // Проверяем пересечения с интерактивными объектами
     const intersects = raycaster.intersectObjects(interactiveObjects, true);
     
+    // Проверяем, активен ли ритуал
+    if (ritualSystem.isActive) {
+        // Проверяем, есть ли текущий шаг
+        if (ritualSystem.currentStep < ritualSystem.steps.length) {
+            const currentStep = ritualSystem.steps[ritualSystem.currentStep];
+            
+            // Если текущий шаг не требует взаимодействия с предметами (например, шаг типа "Нажмите ЛКМ для продолжения")
+            if (currentStep && typeof currentStep.action === 'function' && 
+                !currentStep.requiresItem && !currentStep.requiresRaycast) {
+                if (currentStep.action()) {
+                    ritualSystem.nextStep();
+                }
+                return;
+            }
+            
+            // Если текущий шаг требует взаимодействия с предметами, но пользователь не смотрит на предмет
+            if (currentStep && currentStep.requiresItem && intersects.length === 0) {
+                return; // Ничего не делаем, просто ждем взаимодействия с предметом
+            }
+        }
+    }
+    
+    // Если мы видим пересечение с каким-то предметом
     if (intersects.length > 0) {
         const intersectObj = intersects[0].object;
         const distance = intersects[0].distance;
@@ -2310,12 +2506,44 @@ window.addEventListener('click', (event) => {
         if (item.userData && item.userData.type && distance < 3) {
             // Создаем эффект в точке взаимодействия
             createInteractionEffect(intersects[0].point);
-    
+            
+            // Если у нас активен ритуал и нужно взаимодействие с предметом, проверяем шаг
+            if (ritualSystem.isActive && ritualSystem.currentStep < ritualSystem.steps.length) {
+                const currentStep = ritualSystem.steps[ritualSystem.currentStep];
+                console.log("Текущий шаг:", currentStep);
+                
+                // Если это шаг с предметом и его функция - checkItem
+                if (currentStep && currentStep.requiresItem && typeof currentStep.action === 'function') {
+                    const actionStr = currentStep.action.toString();
+                    console.log("Action функция:", actionStr);
+                    
+                    // Проверяем, содержит ли функция checkItem и вызываем ее с правильным типом предмета
+                    if (actionStr.includes('checkItem')) {
+                        // Извлекаем тип предмета из функции
+                        let itemTypeMatch = actionStr.match(/checkItem\(['"](.*?)['"]\)/);
+                        let itemType = itemTypeMatch ? itemTypeMatch[1] : null;
+                        
+                        console.log("Тип предмета из функции:", itemType);
+                        
+                        // Если мы нашли тип предмета и это тот же тип, что у объекта или нужно проверить все свечи
+                        if (itemType && (itemType === item.userData.type || 
+                                        (itemType === 'candle' && item.userData.type === 'candle'))) {
+                            console.log("Вызываем action для шага с предметом", itemType);
+                            if (currentStep.action()) {
+                                ritualSystem.nextStep();
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             // Проверяем, требует ли текущий шаг деактивации
             const currentStep = ritualSystem.isActive ? ritualSystem.steps[ritualSystem.currentStep] : null;
             const requiresDeactivation = currentStep && currentStep.requiresDeactivation;
-    
+
             // Выполняем действие с предметом в зависимости от требования деактивации
+            console.log("Взаимодействие с предметом:", item.userData.type);
             switch(item.userData.type) {
                 case 'crystal':
                 case 'pentacle':
@@ -3131,12 +3359,19 @@ ritualSystem.showInstruction = function(text) {
 
     const instructionDiv = document.createElement('div');
     instructionDiv.className = 'interaction-hint magic-ui';
-    instructionDiv.innerHTML = `
-        <div>${text}</div>
-        <div style="margin-top: 10px; font-size: 0.9em; color: #b0b0b0;">
-            Нажмите ЛКМ для проверки
-        </div>
-    `;
+    
+    // Проверяем, это сообщение о завершении ритуала или обычная инструкция
+    if (text === 'Ритуал успешно завершен!' || text.includes('завершен')) {
+        instructionDiv.innerHTML = `<div>${text}</div>`;
+    } else {
+        instructionDiv.innerHTML = `
+            <div>${text}</div>
+            <div style="margin-top: 10px; font-size: 0.9em; color: #b0b0b0;">
+                Нажмите ЛКМ для проверки
+            </div>
+        `;
+    }
+    
     document.body.appendChild(instructionDiv);
 };
 
