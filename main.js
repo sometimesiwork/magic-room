@@ -80,19 +80,6 @@ rightWall.rotation.y = -Math.PI / 2;
 rightWall.receiveShadow = true;
 scene.add(rightWall);
 
-// Создаем магический алтарь
-const altarGeometry = new THREE.BoxGeometry(1, 0.5, 1);
-const altarMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x6a6a6a,
-    roughness: 0.3,
-    metalness: 0.3
-});
-const altar = new THREE.Mesh(altarGeometry, altarMaterial);
-altar.position.set(0, 0.25, -4);
-altar.castShadow = true;
-altar.receiveShadow = true;
-scene.add(altar);
-
 // Создаем свечи
 const candleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 8);
 const candleMaterial = new THREE.MeshStandardMaterial({ 
@@ -125,15 +112,14 @@ const incenseMaterial = new THREE.MeshStandardMaterial({
     emissiveIntensity: 0.1
 });
 const incense = new THREE.Mesh(incenseGeometry, incenseMaterial.clone());
-incense.position.set(0, 0.75, -4); // Изменяем позицию на алтарь
 incense.castShadow = true;
 incense.receiveShadow = true;
 incense.userData = {
     type: 'incense',
     isLit: false
 };
-scene.add(incense);
 ritualItems.incense = incense;
+scene.add(incense);
 
 // Обновляем создание свечей
 const createCandle = (x, z) => {
@@ -201,19 +187,17 @@ const createCrystal = (x, z) => {
     return crystal;
 };
 
-// Добавляем кристаллы на алтарь
-const crystalPositions = [
-    { x: -0.3, z: -4 }, // Левый кристалл
-    { x: 0.3, z: -4 },  // Правый кристалл
-    { x: 0, z: -3.8 },  // Центральный кристалл
-    { x: 0, z: -4.2 }   // Задний кристалл
-];
+// Создаем четыре кристалла для алтаря
+const crystal1 = createCrystal(0, 0);
+const crystal2 = createCrystal(0, 0);
+const crystal3 = createCrystal(0, 0);
+const crystal4 = createCrystal(0, 0);
+scene.add(crystal1);
+scene.add(crystal2);
+scene.add(crystal3);
+scene.add(crystal4);
 
-crystalPositions.forEach(pos => {
-    scene.add(createCrystal(pos.x, pos.z));
-});
-
-// Создаем травы
+// Добавляем травы
 const herbGeometry = new THREE.ConeGeometry(0.1, 0.3, 8);
 const herbMaterial = new THREE.MeshStandardMaterial({
     color: 0x228B22,
@@ -272,7 +256,6 @@ const athameMaterial = new THREE.MeshStandardMaterial({
     metalness: 0.8
 });
 const athame = new THREE.Mesh(athameGeometry, athameMaterial.clone());
-athame.position.set(-0.4, 0.5, -4);
 athame.rotation.z = Math.PI / 4;
 athame.castShadow = true;
 athame.receiveShadow = true;
@@ -291,7 +274,6 @@ const chaliceMaterial = new THREE.MeshStandardMaterial({
     metalness: 0.7
 });
 const chalice = new THREE.Mesh(chaliceGeometry, chaliceMaterial.clone());
-chalice.position.set(0.4, 0.5, -4);
 chalice.castShadow = true;
 chalice.receiveShadow = true;
 chalice.userData = {
@@ -311,7 +293,6 @@ const wandMaterial = new THREE.MeshStandardMaterial({
     emissiveIntensity: 0.1
 });
 const wand = new THREE.Mesh(wandGeometry, wandMaterial.clone());
-wand.position.set(0, 0.5, -4.2);
 wand.castShadow = true;
 wand.receiveShadow = true;
 wand.userData = {
@@ -320,6 +301,104 @@ wand.userData = {
 };
 ritualItems.wand = wand;
 scene.add(wand);
+
+// Создаем алтарь
+const createAltar = (x, z) => {
+    // Создаем основание алтаря
+    const altarBase = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.9), new THREE.MeshStandardMaterial({ 
+        color: 0x8B4513, // Более темный коричневый для основания
+        roughness: 0.7,
+        metalness: 0.2
+    }));
+    altarBase.castShadow = true;
+    altarBase.receiveShadow = true;
+    altarBase.position.set(0, 0.4, 0); // Половина высоты основания
+    
+    // Создаем верхнюю поверхность алтаря
+    const altarSurface = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 1.2), new THREE.MeshStandardMaterial({ 
+        color: 0xCD853F, // Светлый коричневый для поверхности
+        roughness: 0.5,
+        metalness: 0.3
+    }));
+    altarSurface.castShadow = true;
+    altarSurface.receiveShadow = true;
+    altarSurface.position.set(0, 0.825, 0); // Позиция над основанием (0.8 + 0.05/2)
+    altarSurface.userData = { type: 'altar', isActivated: false };
+
+    // Создаем группу для алтаря
+    const altarGroup = new THREE.Group();
+    altarGroup.add(altarBase);
+    altarGroup.add(altarSurface);
+    altarGroup.position.set(x, 0, z); // Ставим прямо на пол
+    altarGroup.userData = { type: 'altar', isActivated: false };
+
+    return altarGroup;
+};
+
+// Создаем алтарь и добавляем его в ritualItems
+ritualItems.altar = createAltar(0, -4); // Алтарь у стены вместо центра комнаты
+scene.add(ritualItems.altar);
+
+// Перемещаем предметы на алтарь
+if (ritualItems.chalice) {
+    ritualItems.chalice.position.set(0.3, 0.88, -3.7); // (x, y, z = -4 + 0.3)
+}
+
+if (ritualItems.pentacle) {
+    ritualItems.pentacle.position.set(-0.3, 0.88, -4.3); // (x, y, z = -4 - 0.3)
+}
+
+if (ritualItems.incense) {
+    ritualItems.incense.position.set(0, 0.88, -4.2); // (x, y, z = -4 - 0.2)
+}
+
+if (ritualItems.athame) {
+    ritualItems.athame.position.set(0.2, 0.88, -4.0); // (x, y, z = -4)
+}
+
+if (ritualItems.wand) {
+    ritualItems.wand.position.set(0, 0.88, -3.8); // (x, y, z = -4 + 0.2)
+}
+
+// Перемещаем кристаллы на алтарь
+ritualItems.crystals.forEach((crystal, index) => {
+    if (crystal) {
+        let x, z;
+        
+        switch(index) {
+            case 0: // Верхний левый
+                x = -0.3;
+                z = -3.7;
+                break;
+            case 1: // Верхний правый
+                x = 0.3;
+                z = -3.7;
+                break;
+            case 2: // Нижний левый
+                x = -0.3;
+                z = -4.3;
+                break;
+            case 3: // Нижний правый
+                x = 0.3;
+                z = -4.3;
+                break;
+            default:
+                x = 0;
+                z = -4.0;
+        }
+        
+        crystal.position.set(x, 0.88, z);
+    }
+});
+
+// Перемещаем травы на алтарь
+ritualItems.herbs.forEach((herb, index) => {
+    if (herb) {
+        const x = 0.3;
+        const z = -4.3; // z = -4 - 0.3
+        herb.position.set(x, 0.88, z);
+    }
+});
 
 // Добавляем систему звуков
 const audioSystem = {
@@ -1311,37 +1390,14 @@ const ritualSystem = {
     
     checkDistanceToCircle() {
         const distance = camera.position.distanceTo(magicCircle.position);
-        const maxDistance = 3; // Увеличиваем максимальное расстояние
-        const minDistance = 0.5;
+        const maxDistance = 3;
         
         if (distance > maxDistance) {
             this.showInstruction('Подойдите ближе к магическому кругу');
             return false;
         }
         
-        if (distance < minDistance) {
-            this.showInstruction('Отойдите немного от магического круга');
-            return false;
-        }
-        
-        // Проверяем, находится ли игрок над кругом
-        const heightDiff = Math.abs(camera.position.y - magicCircle.position.y);
-        if (heightDiff > 1.5) { // Увеличиваем допустимую разницу по высоте
-            this.showInstruction('Встаньте на уровень магического круга');
-            return false;
-        }
-        
-        // Проверяем, находится ли игрок в пределах круга по горизонтали
-        const horizontalDistance = Math.sqrt(
-            Math.pow(camera.position.x - magicCircle.position.x, 2) +
-            Math.pow(camera.position.z - magicCircle.position.z, 2)
-        );
-        
-        if (horizontalDistance > 1.5) { // Радиус круга
-            this.showInstruction('Встаньте в центр магического круга');
-            return false;
-        }
-        
+        this.showInstruction('Вы в правильной позиции. Нажмите ЛКМ для продолжения');
         return true;
     },
     
@@ -1360,95 +1416,138 @@ const ritualSystem = {
     },
     
     checkItem(itemType) {
-        let validItem = null;
-        let currentStep = this.steps[this.currentStep];
-        let stepRequiresDeactivation = currentStep && currentStep.requiresDeactivation;
-
-        switch (itemType) {
-            case 'crystal':
-                validItem = ritualItems.crystals.find(crystal =>
-                    crystal && crystal.userData &&
-                    ((stepRequiresDeactivation && !crystal.userData.isCharged) ||
-                    (!stepRequiresDeactivation && crystal.userData.isCharged && !this.usedItems.includes(crystal))));
-                break;
-            case 'herb':
-                validItem = ritualItems.herbs.find(herb =>
-                    herb && herb.userData &&
-                    ((stepRequiresDeactivation && !herb.userData.isBurning) ||
-                    (!stepRequiresDeactivation && herb.userData.isBurning && !this.usedItems.includes(herb))));
-                break;
-            case 'pentacle':
-                validItem = ritualItems.pentacle &&
-                    ritualItems.pentacle.userData &&
-                    ((stepRequiresDeactivation && !ritualItems.pentacle.userData.isCharged) ||
-                    (!stepRequiresDeactivation && ritualItems.pentacle.userData.isCharged && !this.usedItems.includes(ritualItems.pentacle)));
-                break;
-            case 'athame':
-                validItem = ritualItems.athame &&
-                    ritualItems.athame.userData &&
-                    ((stepRequiresDeactivation && !ritualItems.athame.userData.isCharged) ||
-                    (!stepRequiresDeactivation && ritualItems.athame.userData.isCharged && !this.usedItems.includes(ritualItems.athame)));
-                break;
-            case 'chalice':
-                validItem = ritualItems.chalice &&
-                    ritualItems.chalice.userData &&
-                    ((stepRequiresDeactivation && !ritualItems.chalice.userData.isFilled) ||
-                    (!stepRequiresDeactivation && ritualItems.chalice.userData.isFilled && !this.usedItems.includes(ritualItems.chalice)));
-                break;
-            case 'wand':
-                validItem = ritualItems.wand &&
-                    ritualItems.wand.userData &&
-                    ((stepRequiresDeactivation && !ritualItems.wand.userData.isCharged) ||
-                    (!stepRequiresDeactivation && ritualItems.wand.userData.isCharged && !this.usedItems.includes(ritualItems.wand)));
-                break;
-            case 'incense':
-                validItem = ritualItems.incense &&
-                    ritualItems.incense.userData &&
-                    ((stepRequiresDeactivation && !ritualItems.incense.userData.isLit) ||
-                    (!stepRequiresDeactivation && ritualItems.incense.userData.isLit && !this.usedItems.includes(ritualItems.incense)));
-                break;
-            case 'altar':
-                validItem = true;
-                break;
-            case 'candle':
-                if (stepRequiresDeactivation) {
-                    validItem = ritualItems.candles.every(candle =>
-                        candle && candle.userData && !candle.userData.isLit);
-                    if (validItem) {
-                        this.showInstruction('Все свечи погашены. Нажмите ЛКМ для продолжения');
-                    }
-                } else {
-                    validItem = ritualItems.candles.every(candle =>
-                        candle && candle.userData && candle.userData.isLit);
-                    if (validItem) {
-                        this.showInstruction('Все свечи зажжены. Нажмите ЛКМ для продолжения');
-                    }
-                }
-                break;
-            default:
-                validItem = false;
+        let item;
+        
+        // Специальная обработка для алтаря
+        if (itemType === 'altar') {
+            item = ritualItems.altar;
+        } else {
+            item = ritualItems[itemType];
+        }
+        
+        if (!item) {
+            this.showInstruction(`Предмет ${itemType} не найден`);
+            return false;
         }
 
-        if (validItem) {
-            if (stepRequiresDeactivation) {
-                // Для шага деактивации не добавляем в использованные предметы
+        // Проверяем, не был ли предмет уже использован в текущем шаге
+        if (this.usedItems.includes(item.uuid)) {
+            this.showInstruction('Этот предмет уже использован в текущем шаге');
+            return false;
+        }
+
+        // Проверяем, не был ли предмет активирован в предыдущем шаге
+        if (this.activatedItemsStep[item.uuid] !== undefined && 
+            this.activatedItemsStep[item.uuid] !== this.currentStep) {
+            // Если предмет был активирован в предыдущем шаге, позволяем его деактивировать
+            if (item.userData.isActivated) {
+                item.userData.isActivated = false;
+                if (item.children) {
+                    item.children.forEach(child => {
+                        child.material.emissiveIntensity = 0;
+                    });
+                } else {
+                    item.material.emissiveIntensity = 0;
+                }
+                this.showInstruction('Предмет деактивирован');
                 return true;
             }
-            
-            // Для обычного шага добавляем в использованные предметы
-            if (itemType === 'crystal' || itemType === 'herb' || itemType === 'candle') {
-                if (!stepRequiresDeactivation) {
-                    this.usedItems.push(validItem);
-                }
-            } else if (itemType !== 'altar') {
-                if (!stepRequiresDeactivation) {
-                    this.usedItems.push(ritualItems[itemType]);
-                }
-            }
-            return true;
         }
-    
-        return false;
+
+        // Активируем предмет
+        item.userData.isActivated = true;
+        if (item.children) {
+            item.children.forEach(child => {
+                child.material.emissiveIntensity = 0.5;
+            });
+        } else {
+            item.material.emissiveIntensity = 0.5;
+        }
+        this.usedItems.push(item.uuid);
+        this.activatedItemsStep[item.uuid] = this.currentStep;
+
+        // Специальная обработка для разных типов предметов
+        switch (itemType) {
+            case 'candle':
+                if (!item.userData.isLit) {
+                    item.userData.isLit = true;
+                    createParticles(0xff6600, 50, 'candle');
+                    audioSystem.play('candle');
+                }
+                break;
+
+            case 'crystal':
+                if (!item.userData.isCharged) {
+                    item.userData.isCharged = true;
+                    ritualSystem.chargeItem(item);
+                    audioSystem.play('crystal');
+                }
+                break;
+
+            case 'herb':
+                if (requiresDeactivation || item.userData.isBurning) {
+                    // Тушим травы
+                    item.userData.isBurning = false;
+                    item.material.emissiveIntensity = 0;
+                    if (item.userData.smoke) {
+                        scene.remove(item.userData.smoke);
+                        item.userData.smoke = null;
+                    }
+                    audioSystem.play('ritual');
+                } else {
+                    // Зажигаем травы
+                    item.userData.isBurning = true;
+                    ritualSystem.burnHerb(item);
+                }
+                break;
+
+            case 'chalice':
+                if (requiresDeactivation || item.userData.isFilled) {
+                    // Опустошаем чашу
+                    item.userData.isFilled = false;
+                    if (item.userData.water) {
+                        scene.remove(item.userData.water);
+                        item.userData.water = null;
+                    }
+                    audioSystem.play('ritual');
+                } else {
+                    // Наполняем чашу
+                    item.userData.isFilled = true;
+                    ritualSystem.fillChalice(item);
+                }
+                break;
+
+            case 'altar':
+                // Добавляем визуальный эффект для алтаря
+                item.children.forEach(child => {
+                    if (child.material) {
+                        child.material.emissive = new THREE.Color(0xCD853F);
+                        child.material.emissiveIntensity = 0.4;
+                    }
+                });
+                createParticles(0xCD853F, 30, 'altar');
+                audioSystem.play('ritual');
+                break;
+
+            case 'pentacle':
+                audioSystem.play('ritual');
+                break;
+
+            case 'athame':
+                audioSystem.play('ritual');
+                break;
+
+            case 'wand':
+                audioSystem.play('ritual');
+                break;
+
+            case 'incense':
+                audioSystem.play('ritual');
+                break;
+        }
+
+        this.showInstruction('Предмет активирован');
+        return true;
     },
     
     chargeItem(item) {
@@ -2190,16 +2289,13 @@ window.addEventListener('click', (event) => {
                 case 'pentacle':
                 case 'athame':
                 case 'wand':
-                    if (requiresDeactivation) {
-                        if (item.userData.isCharged) {
-                            item.userData.isCharged = false;
-                            item.material.emissiveIntensity = 0;
-                            if (item.userData.particles) {
-                                scene.remove(item.userData.particles);
-                                item.userData.particles = null;
-                            }
-                        }
-                    } else if (!item.userData.isCharged) {
+                    if (requiresDeactivation || item.userData.isCharged) {
+                        // Деактивируем предмет
+                        item.userData.isCharged = false;
+                        item.material.emissiveIntensity = 0;
+                        audioSystem.play('ritual');
+                    } else {
+                        // Активируем предмет
                         item.userData.isCharged = true;
                         ritualSystem.chargeItem(item);
                     }
@@ -2222,32 +2318,34 @@ window.addEventListener('click', (event) => {
                     break;
 
                 case 'chalice':
-                    if (requiresDeactivation) {
-                        if (item.userData.isFilled) {
-                            item.userData.isFilled = false;
-                            if (item.userData.water) {
-                                scene.remove(item.userData.water);
-                                item.userData.water = null;
-                            }
+                    if (requiresDeactivation || item.userData.isFilled) {
+                        // Опустошаем чашу
+                        item.userData.isFilled = false;
+                        if (item.userData.water) {
+                            scene.remove(item.userData.water);
+                            item.userData.water = null;
                         }
-                    } else if (!item.userData.isFilled) {
+                        audioSystem.play('ritual');
+                    } else {
+                        // Наполняем чашу
                         item.userData.isFilled = true;
                         ritualSystem.fillChalice(item);
                     }
                     break;
 
                 case 'candle':
-                    if (requiresDeactivation) {
-                        if (item.userData.isLit) {
-                            item.userData.isLit = false;
-                            if (item.userData.light) {
-                                item.userData.light.visible = false;
-                            }
-                            if (item.userData.flame) {
-                                item.userData.flame.visible = false;
-                            }
+                    if (requiresDeactivation || item.userData.isLit) {
+                        // Гасим свечу
+                        item.userData.isLit = false;
+                        if (item.userData.light) {
+                            item.userData.light.visible = false;
                         }
-                    } else if (!item.userData.isLit) {
+                        if (item.userData.flame) {
+                            item.userData.flame.visible = false;
+                        }
+                        audioSystem.play('candle');
+                    } else {
+                        // Зажигаем свечу
                         item.userData.isLit = true;
                         if (!item.userData.light) {
                             const candleLight = new THREE.PointLight(0xff6600, 1, 2);
@@ -2292,47 +2390,27 @@ window.addEventListener('click', (event) => {
                     break;
 
                 case 'incense':
-                    if (requiresDeactivation) {
-                        if (item.userData.isLit) {
-                            item.userData.isLit = false;
-                            if (item.userData.smoke) {
-                                item.userData.smoke.visible = false;
-                            }
+                    if (requiresDeactivation || item.userData.isLit) {
+                        // Тушим благовоние
+                        item.userData.isLit = false;
+                        item.userData.tip.material.emissive.set(0x000000);
+                        item.userData.tip.material.emissiveIntensity = 0;
+
+                        if (item.userData.smoke) {
+                            scene.remove(item.userData.smoke);
+                            item.userData.smoke = null;
                         }
-                    } else if (!item.userData.isLit) {
+                        audioSystem.play('incense');
+                    } else {
+                        // Зажигаем благовоние
                         item.userData.isLit = true;
+                        item.userData.tip.material.emissive.set(0xff3300);
+                        item.userData.tip.material.emissiveIntensity = 0.5;
+                        audioSystem.play('incense');
+
                         if (!item.userData.smoke) {
-                            const smokeGeometry = new THREE.CylinderGeometry(0.05, 0.2, 0.5, 8);
-                            const smokeMaterial = new THREE.MeshStandardMaterial({
-                                color: 0x808080,
-                                transparent: true,
-                                opacity: 0.5
-                            });
-                            const smoke = new THREE.Mesh(smokeGeometry, smokeMaterial);
-                            smoke.position.copy(item.position);
-                            smoke.position.y += 0.3;
-                            item.userData.smoke = smoke;
-                            scene.add(smoke);
+                            createSmokeParticles(item.position.x, item.position.y + 0.5, item.position.z);
                         }
-                        item.userData.smoke.visible = true;
-                        audioSystem.play('ritual');
-
-                        const smokeInterval = setInterval(() => {
-                            if (item.userData.smoke && item.userData.isLit) {
-                                item.userData.smoke.position.y += 0.005;
-                                item.userData.smoke.scale.x += 0.001;
-                                item.userData.smoke.scale.z += 0.001;
-                                item.userData.smoke.material.opacity -= 0.002;
-
-                                if (item.userData.smoke.position.y > item.position.y + 1.5) {
-                                    item.userData.smoke.position.y = item.position.y + 0.3;
-                                    item.userData.smoke.scale.set(1, 1, 1);
-                                    item.userData.smoke.material.opacity = 0.5;
-                                }
-                            } else {
-                                clearInterval(smokeInterval);
-                            }
-                        }, 50);
                     }
                     break;
             }
@@ -2420,227 +2498,161 @@ function highlightInteractiveObject(object, isHighlighted) {
         // Выделяем объект золотистым цветом
         object.material.emissive = new THREE.Color(0xffd700);
         object.material.emissiveIntensity = 0.3;
+        
+        // Показываем подпись, если объект имеет тип
+        if (object.userData && object.userData.type) {
+            showItemTitle(object);
+        }
     } else if (object.userData.originalEmissive) {
         // Возвращаем оригинальное состояние
         object.material.emissive = object.userData.originalEmissive;
         object.material.emissiveIntensity = object.userData.originalEmissiveIntensity;
+        
+        // Скрываем подпись
+        hideItemTitle();
+    }
+}
+
+// Функция для отображения названия предмета
+function showItemTitle(object) {
+    if (!object || !object.userData || !object.userData.type) return;
+    
+    const interactionText = document.getElementById('interaction-text');
+    if (!interactionText) return;
+    
+    let title = '';
+    let action = '';
+    
+    switch(object.userData.type) {
+        case 'candle':
+            title = 'Свеча';
+            if (object.userData.isLit) {
+                action = 'Нажмите ЛКМ, чтобы погасить свечу';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы зажечь свечу';
+            }
+            break;
+        case 'crystal':
+            title = 'Кристалл';
+            if (object.userData.isCharged) {
+                action = 'Нажмите ЛКМ, чтобы разрядить кристалл';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы зарядить кристалл';
+            }
+            break;
+        case 'herb':
+            title = 'Целебные травы';
+            if (object.userData.isBurning) {
+                action = 'Нажмите ЛКМ, чтобы потушить травы';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы поджечь травы';
+            }
+            break;
+        case 'chalice':
+            title = 'Ритуальная чаша';
+            if (object.userData.isFilled) {
+                action = 'Нажмите ЛКМ, чтобы опустошить чашу';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы наполнить чашу';
+            }
+            break;
+        case 'pentacle':
+            title = 'Пентакль';
+            if (object.userData.isCharged) {
+                action = 'Нажмите ЛКМ, чтобы разрядить пентакль';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы активировать пентакль';
+            }
+            break;
+        case 'athame':
+            title = 'Атам (ритуальный нож)';
+            if (object.userData.isCharged) {
+                action = 'Нажмите ЛКМ, чтобы разрядить атам';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы зарядить атам';
+            }
+            break;
+        case 'wand':
+            title = 'Волшебная палочка';
+            if (object.userData.isCharged) {
+                action = 'Нажмите ЛКМ, чтобы разрядить волшебную палочку';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы зарядить волшебную палочку';
+            }
+            break;
+        case 'incense':
+            title = 'Благовония';
+            if (object.userData.isLit) {
+                action = 'Нажмите ЛКМ, чтобы погасить благовония';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы зажечь благовония';
+            }
+            break;
+        case 'altar':
+            title = 'Алтарь';
+            if (object.userData.isActivated) {
+                action = 'Нажмите ЛКМ, чтобы деактивировать алтарь';
+            } else {
+                action = 'Нажмите ЛКМ, чтобы активировать алтарь';
+            }
+            break;
+        default:
+            title = 'Магический предмет';
+            action = 'Нажмите ЛКМ для взаимодействия';
+    }
+    
+    interactionText.innerHTML = `<div>${title}</div><div style="font-size: 0.8em; opacity: 0.8;">${action}</div>`;
+    interactionText.style.display = 'block';
+}
+
+// Функция для скрытия названия предмета
+function hideItemTitle() {
+    const interactionText = document.getElementById('interaction-text');
+    if (interactionText) {
+        interactionText.style.display = 'none';
     }
 }
 
 // Обновляем функцию updateRaycaster с той же логикой
 function updateRaycaster() {
-    if (!controls.isLocked) return;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
     
-    // Сначала сбрасываем подсветку всех интерактивных объектов
+    // Сбрасываем подсветку всех объектов
     resetAllHighlights();
     
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    
-    // Собираем все интерактивные объекты в один массив
-    const interactiveObjects = [
-        ...ritualItems.candles,
-        ...ritualItems.crystals,
-        ...ritualItems.herbs,
-        ritualItems.pentacle,
-        ritualItems.athame,
-        ritualItems.chalice,
-        ritualItems.wand,
-        ritualItems.incense
-    ].filter(obj => obj != null);
-    
-    // Проверяем пересечения с интерактивными объектами
-    const intersects = raycaster.intersectObjects(interactiveObjects, true);
-    
-    let showInteraction = false;
-    let interactionMessage = '';
-    let highlightedObject = null;
-    
-    if (intersects.length > 0) {
-        const intersectObj = intersects[0].object;
-        const distance = intersects[0].distance;
+    // Проверяем пересечения
+    for (const intersect of intersects) {
+        const object = intersect.object;
         
-        // Находим объект в ритуальных принадлежностях
-        let item = intersectObj;
-        
-        // Если не нашли тип в самом объекте, ищем в родительских объектах
-        if (!item.userData || !item.userData.type) {
-            let parentObj = item;
-            while (parentObj.parent && (!parentObj.userData || !parentObj.userData.type)) {
-                parentObj = parentObj.parent;
+        // Проверяем, является ли объект интерактивным
+        if (object.userData && object.userData.type) {
+            // Для алтаря проверяем сам объект и его дочерние элементы
+            if (object.userData.type === 'altar' || 
+                (object.parent && object.parent.userData && object.parent.userData.type === 'altar')) {
+                const altarObject = object.userData.type === 'altar' ? object : object.parent;
+                highlightInteractiveObject(altarObject, true);
+                updateCrosshair(true);
+                return;
             }
-            if (parentObj.userData && parentObj.userData.type) {
-                item = parentObj;
-            }
-        }
-        
-        // Проверяем расстояние до объекта
-        if (item.userData && item.userData.type && distance < 3) {
-            showInteraction = true;
-            highlightedObject = item;
             
-            // Проверяем, требует ли текущий шаг деактивации
-            const currentStep = ritualSystem.isActive ? ritualSystem.steps[ritualSystem.currentStep] : null;
-            const requiresDeactivation = currentStep && currentStep.requiresDeactivation;
-
-            switch(item.userData.type) {
-                case 'crystal':
-                    if (requiresDeactivation) {
-                        if (item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы разрядить кристалл';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы зарядить кристалл';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
-                case 'pentacle':
-                    if (requiresDeactivation) {
-                        if (item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы разрядить пентакль';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы зарядить пентакль';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
-                case 'athame':
-                    if (requiresDeactivation) {
-                        if (item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы разрядить атам';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы зарядить атам';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
-                case 'wand':
-                    if (requiresDeactivation) {
-                        if (item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы разрядить волшебную палочку';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isCharged) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы зарядить волшебную палочку';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
-                case 'herb':
-                    if (requiresDeactivation) {
-                        if (item.userData.isBurning) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы потушить травы';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isBurning) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы поджечь травы';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
-                case 'chalice':
-                    if (requiresDeactivation) {
-                        if (item.userData.isFilled) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы опустошить чашу';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isFilled) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы наполнить чашу';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
-                case 'candle':
-                    if (requiresDeactivation) {
-                        if (item.userData.isLit) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы погасить свечу';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isLit) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы зажечь свечу';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
-                case 'incense':
-                    if (requiresDeactivation) {
-                        if (item.userData.isLit) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы погасить благовония';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    } else {
-                        if (!item.userData.isLit) {
-                            interactionMessage = 'Нажмите ЛКМ, чтобы зажечь благовония';
-                        } else {
-                            showInteraction = false;
-                            highlightedObject = null;
-                        }
-                    }
-                    break;
+            // Для остальных предметов
+            if (object.userData.type === 'candle' || 
+                object.userData.type === 'crystal' || 
+                object.userData.type === 'herb' || 
+                object.userData.type === 'chalice' || 
+                object.userData.type === 'pentacle' || 
+                object.userData.type === 'athame' || 
+                object.userData.type === 'wand' || 
+                object.userData.type === 'incense') {
+                highlightInteractiveObject(object, true);
+                updateCrosshair(true);
+                return;
             }
         }
     }
     
-    // Подсвечиваем выбранный объект
-    if (highlightedObject) {
-        highlightInteractiveObject(highlightedObject, true);
-    }
-    
-    // Обновляем текст взаимодействия
-    const interactionText = document.getElementById('interaction-text');
-    if (interactionText) {
-        if (showInteraction) {
-            interactionText.textContent = interactionMessage;
-            interactionText.style.display = 'block';
-        } else {
-            interactionText.style.display = 'none';
-        }
-    }
-    
-    // Обновляем состояние прицела
-    updateCrosshair(showInteraction);
+    updateCrosshair(false);
 }
 
 // Функция для сброса всех подсветок
@@ -2665,6 +2677,15 @@ function resetAllHighlights() {
             highlightInteractiveObject(candle, false);
         }
     });
+    
+    // Сбрасываем подсветку алтаря
+    if (ritualItems.altar && ritualItems.altar.children) {
+        ritualItems.altar.children.forEach(child => {
+            if (child && child.material) {
+                highlightInteractiveObject(child, false);
+            }
+        });
+    }
     
     // Сбрасываем подсветку других предметов
     const otherItems = [
@@ -2789,18 +2810,18 @@ const styles = `
         color: #e0e0e0;
         text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
         font-size: 0.9em;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid #4a4a4a;
-        border-radius: 8px;
-        padding: 12px;
-        backdrop-filter: blur(5px);
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
     }
     
     .ritual-panel {
         position: absolute;
         top: 15px;
         right: 15px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid #4a4a4a;
+        border-radius: 8px;
+        padding: 12px;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
         max-width: 300px;
         z-index: 200;
         max-height: 70vh;
@@ -2812,8 +2833,6 @@ const styles = `
         margin-bottom: 8px;
         color: #ffd700;
         text-align: center;
-        text-transform: uppercase;
-        letter-spacing: 2px;
     }
     
     .ritual-description {
@@ -2845,44 +2864,38 @@ const styles = `
     
     .ritual-step {
         background: rgba(255, 255, 255, 0.05);
-        padding: 12px;
-        border-radius: 6px;
-        margin-bottom: 8px;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 6px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: all 0.2s ease;
     }
     
-    .ritual-step.active-step {
-        background: rgba(255, 215, 0, 0.1);
+    .ritual-step.active {
+        background: rgba(255, 215, 0, 0.05);
         border-color: #ffd700;
-        box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
     }
     
     .ritual-step.completed {
-        background: rgba(0, 255, 0, 0.1);
+        background: rgba(0, 255, 0, 0.05);
         border-color: #00ff00;
-        box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
     }
     
     .step-number {
         font-size: 0.7em;
         color: #ffd700;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        margin-bottom: 3px;
     }
     
     .step-text {
         font-size: 0.85em;
         margin-bottom: 6px;
-        line-height: 1.4;
     }
     
     .step-progress {
         height: 2px;
         background: rgba(255, 255, 255, 0.05);
         border-radius: 1px;
-        margin-top: 6px;
+        margin-top: 4px;
     }
     
     .step-progress-bar {
@@ -2896,6 +2909,12 @@ const styles = `
         position: absolute;
         bottom: 15px;
         left: 15px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid #4a4a4a;
+        border-radius: 8px;
+        padding: 8px;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
         z-index: 210;
     }
     
@@ -2904,12 +2923,17 @@ const styles = `
         bottom: 120px;
         left: 50%;
         transform: translateX(-50%);
-        padding: 12px 20px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid #4a4a4a;
+        border-radius: 6px;
+        padding: 8px 15px;
         font-size: 0.9em;
         color: #ffd700;
         text-align: center;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
         transition: all 0.2s ease;
-        max-width: 300px;
+        max-width: 250px;
         z-index: 220;
         pointer-events: none;
     }
@@ -2918,10 +2942,14 @@ const styles = `
         position: absolute;
         top: 15px;
         left: 15px;
-        padding: 12px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px;
+        border-radius: 4px;
         font-size: 0.8em;
+        font-family: 'Cinzel', serif;
         z-index: 140;
-        max-width: 250px;
+        max-width: 200px;
     }
     
     #interaction-text {
@@ -2929,10 +2957,14 @@ const styles = `
         bottom: 80px;
         left: 50%;
         transform: translateX(-50%);
-        padding: 12px 20px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 4px;
         font-size: 0.8em;
+        font-family: 'Cinzel', serif;
         z-index: 130;
-        max-width: 300px;
+        max-width: 200px;
         text-align: center;
         display: none;
         pointer-events: none;
@@ -2974,15 +3006,11 @@ const styles = `
         content: '';
         position: absolute;
         top: 0;
-        left: -100%;
+        left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.1),
-            transparent
-        );
+        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transform: translateX(-100%);
         transition: transform 0.3s ease;
     }
     
@@ -2993,9 +3021,9 @@ const styles = `
     .control-key {
         display: inline-block;
         background: rgba(255, 255, 255, 0.05);
-        padding: 4px 8px;
+        padding: 3px 6px;
         margin: 2px;
-        border-radius: 4px;
+        border-radius: 3px;
         font-size: 0.8em;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
@@ -3010,9 +3038,9 @@ const styles = `
     }
     
     @media (max-width: 768px) {
-        .magic-ui {
+        .ritual-panel, .controls-panel, .interaction-hint {
             font-size: 0.8em;
-            padding: 8px 12px;
+            padding: 6px 10px;
         }
     }
 `;
